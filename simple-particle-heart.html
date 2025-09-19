@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Простое Сердце из Частиц</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #heart {
+            position: relative;
+            width: 500px;
+            height: 500px;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ee5282;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #ee5282, 0 0 30px #ee5282;
+            animation: pulse 2s ease-in-out infinite;
+            transition: all 2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .particle.scattered {
+            animation: none;
+        }
+
+        .particle.collecting {
+            animation: collectToCenter 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+        }
+
+        @keyframes collectToCenter {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.5);
+                opacity: 0.8;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 0.8;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.2);
+            }
+        }
+
+        @keyframes heartBeat {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        #heart {
+            animation: heartBeat 1.5s ease-in-out infinite;
+        }
+
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            z-index: 100;
+            font-size: 14px;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 18px;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div class="loading" id="loading">Создание сердца...</div>
+        <div id="info">
+            <div>Сердце из Частиц ❤️</div>
+            <div>Кликните по сердцу для эффекта сбора</div>
+        </div>
+        <div id="controls">
+            <button id="colorBtn">Цвет</button>
+            <button id="sizeBtn">Размер</button>
+            <button id="speedBtn">Скорость</button>
+            <button id="scatterBtn">Разброс</button>
+            <button id="collectBtn">Сбор</button>
+            <button id="resetBtn">Сброс</button>
+        </div>
+        <div id="heart"></div>
+    </div>
+
+    <script>
+        let colors = ['#ee5282', '#ff6b6b', '#ff69b4', '#9b59b6', '#3498db', '#2ecc71', '#f39c12'];
+        let currentColorIndex = 0;
+        let currentSize = 6;
+        let currentSpeed = 1;
+
+        // Функция для создания точек сердца
+        function createHeartPoints() {
+            const points = [];
+            const numPoints = 800;
+            
+            for (let i = 0; i < numPoints; i++) {
+                const t = (i / numPoints) * Math.PI * 2;
+                
+                // Параметрическое уравнение сердца
+                const x = 16 * Math.pow(Math.sin(t), 3);
+                const y = 13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t);
+                
+                // Преобразование в координаты экрана
+                const screenX = (x + 20) * 12; // Увеличиваем масштабирование
+                const screenY = (-y + 20) * 12;
+                
+                points.push({ x: screenX, y: screenY });
+            }
+            
+            return points;
+        }
+
+        // Создание частиц
+        function createParticles() {
+            const heart = document.getElementById('heart');
+            const points = createHeartPoints();
+            
+            heart.innerHTML = '';
+            
+            points.forEach((point, index) => {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = point.x + 'px';
+                particle.style.top = point.y + 'px';
+                particle.style.background = colors[currentColorIndex];
+                particle.style.boxShadow = `0 0 10px ${colors[currentColorIndex]}`;
+                particle.style.width = currentSize + 'px';
+                particle.style.height = currentSize + 'px';
+                particle.style.animationDelay = (index * 0.01) + 's';
+                
+                // Сохраняем исходную позицию
+                particle.dataset.originalX = point.x;
+                particle.dataset.originalY = point.y;
+                
+                heart.appendChild(particle);
+            });
+        }
+
+        // Функция для разброса частиц по углам
+        function scatterParticles() {
+            const particles = document.querySelectorAll('.particle');
+            const heart = document.getElementById('heart');
+            const heartRect = heart.getBoundingClientRect();
+            const centerX = heartRect.width / 2;
+            const centerY = heartRect.height / 2;
+            
+            particles.forEach((particle, index) => {
+                particle.classList.add('scattered');
+                
+                // Случайный угол для разброса
+                const angle = (index / particles.length) * Math.PI * 2;
+                const distance = 200 + Math.random() * 100; // Расстояние от центра
+                
+                const scatterX = centerX + Math.cos(angle) * distance;
+                const scatterY = centerY + Math.sin(angle) * distance;
+                
+                particle.style.left = scatterX + 'px';
+                particle.style.top = scatterY + 'px';
+            });
+        }
+
+        // Функция для сбора частиц в центр
+        function collectParticles() {
+            const particles = document.querySelectorAll('.particle');
+            
+            particles.forEach((particle, index) => {
+                particle.classList.remove('scattered');
+                particle.classList.add('collecting');
+                
+                // Возвращаем к исходной позиции
+                const originalX = parseFloat(particle.dataset.originalX);
+                const originalY = parseFloat(particle.dataset.originalY);
+                
+                // Более плавная задержка для эффекта волны
+                const delay = index * 3; // Увеличиваем задержку между частицами
+                
+                setTimeout(() => {
+                    particle.style.left = originalX + 'px';
+                    particle.style.top = originalY + 'px';
+                    
+                    // Убираем класс после завершения анимации
+                    setTimeout(() => {
+                        particle.classList.remove('collecting');
+                    }, 2000); // Увеличиваем время анимации
+                }, delay);
+            });
+        }
+
+        // Инициализация
+        function init() {
+            createParticles();
+            document.getElementById('loading').style.display = 'none';
+        }
+
+        // Обработчики событий
+        document.getElementById('colorBtn').addEventListener('click', () => {
+            currentColorIndex = (currentColorIndex + 1) % colors.length;
+            createParticles();
+        });
+
+        document.getElementById('sizeBtn').addEventListener('click', () => {
+            const sizes = [4, 6, 8, 10];
+            const currentIndex = sizes.indexOf(currentSize);
+            currentSize = sizes[(currentIndex + 1) % sizes.length];
+            createParticles();
+        });
+
+        document.getElementById('speedBtn').addEventListener('click', () => {
+            const speeds = [0.5, 1, 1.5, 2];
+            const currentIndex = speeds.indexOf(currentSpeed);
+            currentSpeed = speeds[(currentIndex + 1) % speeds.length];
+            
+            const heart = document.getElementById('heart');
+            heart.style.animationDuration = (1.5 / currentSpeed) + 's';
+        });
+
+        document.getElementById('scatterBtn').addEventListener('click', () => {
+            scatterParticles();
+        });
+
+        document.getElementById('collectBtn').addEventListener('click', () => {
+            collectParticles();
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            currentColorIndex = 0;
+            currentSize = 6;
+            currentSpeed = 1;
+            createParticles();
+            
+            const heart = document.getElementById('heart');
+            heart.style.animationDuration = '1.5s';
+        });
+
+        // Клик по сердцу для эффекта сбора частиц
+        document.getElementById('heart').addEventListener('click', () => {
+            // Сначала разбрасываем частицы
+            scatterParticles();
+            
+            // Затем собираем их обратно
+            setTimeout(() => {
+                collectParticles();
+            }, 500);
+            
+            // Меняем цвет после сбора (увеличиваем время для замедленного процесса)
+            setTimeout(() => {
+                currentColorIndex = (currentColorIndex + 1) % colors.length;
+                createParticles();
+            }, 5000); // Увеличиваем время ожидания
+        });
+
+        // Запуск приложения
+        setTimeout(init, 1000);
+    </script>
+</body>
+</html>
